@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot UI</title>
+    <style>
+        .chat-container {
+            width: 400px;
+            height: 500px;
+            border: 1px solid #ccc;
+            margin: 20px auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-messages {            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .user-message {
+            background-color: #e3f2fd;
+            margin-left: 20%;
+        }
+        .bot-message {
+            background-color: #f5f5f5;
+            margin-right: 20%;
+        }
+        .input-container {
+            padding: 20px;
+            border-top: 1px solid #ccc;
+        }
+        .input-container form {
+            display: flex;
+            gap: 10px;
+        }
+        #message-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #1976d2;
+        }
+        /* Test mode styles */
+        .test-controls {
+            margin: 20px auto;
+            width: 400px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .test-toggle {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Test controls -->
+    <div class="test-controls">
+        <div class="test-toggle">
+            <input type="checkbox" id="test-mode" onchange="toggleTestMode()">
+            <label for="test-mode">Enable Test Mode</label>
+        </div>
+        <div id="test-settings" style="display: none;">
+            <label>Simulated Response Delay (ms):
+                <input type="number" id="delay-input" value="1000" min="0">
+            </label>
+        </div>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="input-container">
+            <form id="chat-form">
+                <input type="text" id="message-input" placeholder="Type your message..." required>
+                <button type="submit">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        const testModeCheckbox = document.getElementById('test-mode');
+        const testSettings = document.getElementById('test-settings');
+        const delayInput = document.getElementById('delay-input');
+
+        let isTestMode = false;
+
+        function toggleTestMode() {
+            isTestMode = testModeCheckbox.checked;
+            testSettings.style.display = isTestMode ? 'block' : 'none';
+        }
+
+        function addMessage(message, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.classList.add(isUser ? 'user-message' : 'bot-message');
+            messageDiv.textContent = message;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Mock responses for testing
+        const mockResponses = [
+            "Hello! How can I help you today?",
+            "That's interesting, tell me more.",
+            "I understand your question. Let me help you with that.",
+            "Could you please provide more details?",
+            "I'm processing your request."
+        ];
+
+        function getRandomResponse() {
+            return mockResponses[Math.floor(Math.random() * mockResponses.length)];
+        }
+
+        async function handleMessage(message) {
+            if (isTestMode) {
+                // Simulate API delay
+                const delay = parseInt(delayInput.value) || 1000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+                // Return mock response
+                return {
+                    message: getRandomResponse()
+                };
+            } else {
+                // Real API call
+                const response = await fetch('/webhook', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to get response');
+                }
+
+                return response.json();
+            }
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message to chat
+            addMessage(message, true);
+            messageInput.value = '';
+
+            try {
+                const data = await handleMessage(message);
+                
+                // Add bot response to chat
+                if (data.message) {
+                    addMessage(data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('Sorry, there was an error processing your message.', false);
+            }
+        });
+
+        // Add initial test message
+        if (!chatMessages.children.length) {
+            addMessage("👋 Hi! I'm your chatbot. You can test me by enabling test mode above, or connect to the real API by leaving test mode disabled.");
+        }
+    </script>
+</body>
+</html>
+<!-- Instructions for running the code -->
+
+<!--
+To run this chatbot UI:
+
+1. Save this code as `chatbot-UI.html` on your computer
+
+2. Set up a local server:
+   - Using Python 3: Run `python -m http.server` in the directory containing the file
+   - Using Python 2: Run `python -m SimpleHTTPServer` in the directory containing the file
+   - Or use any other local development server (Node.js, PHP, etc.)
+
+3. Open your web browser and navigate to:
+   - If using Python server: `http://localhost:8000/chatbot-UI.html`
+   - Or the appropriate localhost URL for your chosen server
+
+4. The chatbot UI should now be visible and functional:
+   - Toggle test mode to try the chatbot with random responses
+   - With test mode off, ensure your webhook endpoint is properly configured at `/webhook`
+
+Note: For the real API mode to work, you'll need to have a backend server running that can handle POST requests to `/webhook`.
+-->
+
